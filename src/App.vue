@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
-import type { Action, AppState, GamepadState } from './types'
+import type { Action, AppState, FilterPreset, GamepadState } from './types'
 
 // Google Analytics gtag declaration
 declare global {
@@ -11,14 +11,14 @@ declare global {
 
 // Action definitions with sensible FilterPreset defaults and hints
 const ACTIONS: Omit<Action, 'bindings'>[] = [
-  { name: 'HelicopterCollectiveIncrease', filterPreset: 'up', hint: 'Increase altitude (raise collective)', hardware: 'throttle', importance: 'critical' },
-  { name: 'HelicopterCollectiveDecrease', filterPreset: 'down', hint: 'Decrease altitude (lower collective)', hardware: 'throttle', importance: 'critical' },
-  { name: 'HelicopterAntiTorqueLeft', filterPreset: 'left', hint: 'Yaw left (left pedal)', hardware: 'pedals', importance: 'critical' },
-  { name: 'HelicopterAntiTorqueRight', filterPreset: 'right', hint: 'Yaw right (right pedal)', hardware: 'pedals', importance: 'critical' },
-  { name: 'HelicopterCyclicForward', filterPreset: 'forward', hint: 'Pitch nose down (move forward)', hardware: 'stick', importance: 'critical' },
-  { name: 'HelicopterCyclicBack', filterPreset: 'back', hint: 'Pitch nose up (slow down)', hardware: 'stick', importance: 'critical' },
-  { name: 'HelicopterCyclicLeft', filterPreset: 'left', hint: 'Roll left (move sideways left)', hardware: 'stick', importance: 'critical' },
-  { name: 'HelicopterCyclicRight', filterPreset: 'right', hint: 'Roll right (move sideways right)', hardware: 'stick', importance: 'critical' },
+  { name: 'HelicopterCollectiveIncrease', filterPreset: 'up', actionType: 'analog', hint: 'Increase altitude (raise collective)', hardware: 'throttle', importance: 'critical' },
+  { name: 'HelicopterCollectiveDecrease', filterPreset: 'down', actionType: 'analog', hint: 'Decrease altitude (lower collective)', hardware: 'throttle', importance: 'critical' },
+  { name: 'HelicopterAntiTorqueLeft', filterPreset: 'left', actionType: 'analog', hint: 'Yaw left (left pedal)', hardware: 'pedals', importance: 'critical' },
+  { name: 'HelicopterAntiTorqueRight', filterPreset: 'right', actionType: 'analog', hint: 'Yaw right (right pedal)', hardware: 'pedals', importance: 'critical' },
+  { name: 'HelicopterCyclicForward', filterPreset: 'forward', actionType: 'analog', hint: 'Pitch nose down (move forward)', hardware: 'stick', importance: 'critical' },
+  { name: 'HelicopterCyclicBack', filterPreset: 'back', actionType: 'analog', hint: 'Pitch nose up (slow down)', hardware: 'stick', importance: 'critical' },
+  { name: 'HelicopterCyclicLeft', filterPreset: 'left', actionType: 'analog', hint: 'Roll left (move sideways left)', hardware: 'stick', importance: 'critical' },
+  { name: 'HelicopterCyclicRight', filterPreset: 'right', actionType: 'analog', hint: 'Roll right (move sideways right)', hardware: 'stick', importance: 'critical' },
   { name: 'HelicopterWheelBrake', filterPreset: 'pressed', hint: 'Apply brakes (momentary)', hardware: 'pedals', importance: 'important' },
   { name: 'HelicopterWheelBrakePersistent', filterPreset: 'pressed', hint: 'Parking brake (toggle)', hardware: 'button', importance: 'important' },
   { name: 'HelicopterAutohoverToggle', filterPreset: 'click', hint: 'Auto-hover stabilization', hardware: 'button', importance: 'important' },
@@ -26,6 +26,23 @@ const ACTIONS: Omit<Action, 'bindings'>[] = [
   { name: 'HelicopterLightsLandingToggle', filterPreset: 'toggle', hint: 'Landing lights (approach)', hardware: 'switch', importance: 'optional' },
   { name: 'HelicopterEngineStart', filterPreset: 'hold', hint: 'Start engine and rotors', hardware: 'button', importance: 'critical' },
   { name: 'HelicopterEngineStop', filterPreset: 'click', hint: 'Stop engine and rotors', hardware: 'button', importance: 'critical' },
+  { name: 'CarThrust', filterPreset: 'axis', actionType: 'analog', hint: 'Accelerate the car / vehicle', hardware: 'throttle', importance: 'critical' },
+  { name: 'CarBrake', filterPreset: 'axis', actionType: 'analog', hint: 'Brake pedal or axis input', hardware: 'pedals', importance: 'critical' },
+  { name: 'CarSteering', filterPreset: 'left', actionType: 'analog', hint: 'Steer left and right', hardware: 'stick', importance: 'critical' },
+  { name: 'CarTurbo', filterPreset: 'hold', hint: 'Hold to engage turbo / boost', hardware: 'button', importance: 'important' },
+  { name: 'CarTurboToggle', filterPreset: 'click', hint: 'Toggle turbo / boost mode', hardware: 'button', importance: 'optional' },
+  { name: 'CarHandBrake', filterPreset: 'pressed', hint: 'Momentary hand brake', hardware: 'button', importance: 'important' },
+  { name: 'CarHandBrakePersistent', filterPreset: 'pressed', hint: 'Persistent hand brake (toggle)', hardware: 'button', importance: 'important' },
+  { name: 'VehicleEngineStart', filterPreset: 'hold', hint: 'Start vehicle engine', hardware: 'button', importance: 'important' },
+  { name: 'VehicleEngineStop', filterPreset: 'click', hint: 'Stop vehicle engine', hardware: 'button', importance: 'important' },
+  { name: 'CarShift', filterPreset: 'up', hint: 'Shift up/down', hardware: 'hat', importance: 'important' },
+  { name: 'VehicleHorn', filterPreset: 'hold', hint: 'Vehicle horn', hardware: 'button', importance: 'optional' },
+  { name: 'VehicleLightsToggle', filterPreset: 'click', hint: 'Toggle vehicle lights', hardware: 'button', importance: 'optional' },
+  { name: 'CarLightsHiBeamToggle', filterPreset: 'toggle', hint: 'Toggle hi-beam headlights', hardware: 'button', importance: 'optional' },
+  { name: 'VehicleDoorToggle', filterPreset: 'click', hint: 'Toggle vehicle door', hardware: 'button', importance: 'optional' },
+  { name: 'VehicleTurnOutToggle', filterPreset: 'hold', hint: 'Hold to turn out vehicle equipment', hardware: 'button', importance: 'optional' },
+  { name: 'VehicleTurnIn', filterPreset: 'click', hint: 'Turn vehicle equipment in', hardware: 'button', importance: 'optional' },
+  { name: 'VehicleTurnOut', filterPreset: 'click', hint: 'Turn vehicle equipment out', hardware: 'button', importance: 'optional' },
   { name: 'CharacterFire', filterPreset: 'hold', hint: 'Fire primary weapon (use same trigger as all fire actions)', hardware: 'trigger', importance: 'critical' },
   { name: 'CharacterNextWeapon', filterPreset: 'click', hint: 'Switch to next weapon (use same button as all weapon switch actions)', hardware: 'hat', importance: 'important' },
   { name: 'CharacterNextFireMode', filterPreset: 'click', hint: 'Change fire mode (single/burst/auto)', hardware: 'button', importance: 'important' },
@@ -263,6 +280,11 @@ function describeInput(input: string): string {
     const dir = direction === '+' ? 'positive' : 'negative'
     return `Joystick ${joyNum}, Axis ${num} ${dir} (${direction === '+' ? 'push/right' : 'pull/left'})`
   }
+}
+
+function formatBindingForDisplay(binding: string | null, actionName?: string | null): string | null {
+  if (!binding) return binding
+  return binding
 }
 
 function resetGamepadBaseline() {
@@ -594,10 +616,26 @@ function detectTestModeInput(gamepad: Gamepad, gamepadIndex: number) {
 
 function confirmInput() {
   if (state.pendingInput && currentAction.value) {
+    let inputStr = state.pendingInput
+    const actionName = currentAction.value.name
+
     // Add the new binding to the array if it doesn't already exist
-    if (!currentAction.value.bindings.includes(state.pendingInput)) {
-      currentAction.value.bindings.push(state.pendingInput)
+    if (!currentAction.value.bindings.includes(inputStr)) {
+      currentAction.value.bindings.push(inputStr)
     }
+
+    // For bidirectional axis controls, automatically add the opposite direction
+    if (inputStr.includes('axis') && (inputStr.endsWith('+') || inputStr.endsWith('-'))) {
+      const baseInput = inputStr.slice(0, -1) // Remove the +/-
+      const oppositeDirection = inputStr.endsWith('+') ? '-' : '+'
+      const oppositeInput = baseInput + oppositeDirection
+
+      // Add opposite binding for steering and shift actions
+      if ((actionName === 'CarSteering' || actionName === 'CarShift') && !currentAction.value.bindings.includes(oppositeInput)) {
+        currentAction.value.bindings.push(oppositeInput)
+      }
+    }
+
     state.pendingInput = null
     state.inputCooldown = true
     setTimeout(() => {
@@ -610,6 +648,7 @@ function confirmInput() {
     }, 300)
   }
 }
+
 
 function removeBinding(index: number) {
   if (currentAction.value && index >= 0 && index < currentAction.value.bindings.length) {
@@ -808,6 +847,35 @@ function generateGUID(): string {
   return result
 }
 
+function getBindingFilterPreset(action: Action, binding: string): FilterPreset {
+  if (action.name === 'CarSteering') {
+    if (binding.endsWith('+')) return 'right'
+    if (binding.endsWith('-')) return 'left'
+  }
+
+  if (action.name === 'CarShift') {
+    if (binding.endsWith('+')) return 'up'
+    if (binding.endsWith('-')) return 'down'
+    // For non-axis bindings (buttons), assign based on order
+    const index = action.bindings.indexOf(binding)
+    if (index === 0) return 'up'
+    if (index === 1) return 'down'
+    return 'up' // default
+  }
+
+  if (action.name === 'CarThrust') {
+    if (binding.endsWith('+')) return 'up'
+    if (binding.endsWith('-')) return 'down'
+  }
+
+  if (action.name === 'CarBrake') {
+    if (binding.endsWith('+')) return 'up'
+    if (binding.endsWith('-')) return 'down'
+  }
+
+  return action.filterPreset
+}
+
 // Helper function to track config download
 function trackConfigDownload() {
   const joysticks = Object.values(state.connectedGamepads)
@@ -840,11 +908,14 @@ function generateConfig(): string {
       // Generate an InputSourceValue for each binding
       action.bindings.forEach(binding => {
         const inputValueGUID = generateGUID()
+        const bindingFilterPreset = getBindingFilterPreset(action, binding)
         config += `     InputSourceValue "${inputValueGUID}" {\n`
-        config += `      FilterPreset "${action.filterPreset}"\n`
+        if (!(action.name === 'CarThrust' || action.name === 'CarBrake') || !binding.includes('axis') || !(binding.endsWith('+') || binding.endsWith('-'))) {
+          config += `      FilterPreset "${bindingFilterPreset}"\n`
+        }
         config += `      Input "${binding}"\n`
 
-        if (action.filterPreset === 'toggle') {
+        if (bindingFilterPreset === 'toggle') {
           const filterGUID = generateGUID()
           config += `      Filter InputFilterDown "${filterGUID}" {\n`
           config += `      }\n`
@@ -1427,11 +1498,11 @@ onUnmounted(() => {
             <div class="input-detected" :class="{ 'has-input': state.pendingInput || (currentAction?.bindings && currentAction.bindings.length > 0) }">
               <div v-if="!state.pendingInput && (!currentAction?.bindings || currentAction.bindings.length === 0)" class="waiting-message">Waiting for input...</div>
               <div v-else-if="state.pendingInput">
-                <strong>{{ state.pendingInput }}</strong>
+                <strong>{{ formatBindingForDisplay(state.pendingInput, currentAction?.name) }}</strong>
               </div>
               <div v-else-if="currentAction?.bindings && currentAction.bindings.length > 0">
                 <div v-for="(binding, index) in currentAction.bindings" :key="index" class="binding-item">
-                  <strong>{{ binding }}</strong>
+                  <strong>{{ formatBindingForDisplay(binding, currentAction?.name) }}</strong>
                   <button @click="removeBinding(index)" class="btn-remove-binding" title="Remove this binding">×</button>
                 </div>
               </div>
@@ -1550,7 +1621,7 @@ onUnmounted(() => {
                }"
                @click="state.configuring && jumpToAction(state.actions.indexOf(action))">
             <span class="action-item-name">{{ formatActionName(action.name) }}</span>
-            <span class="action-item-binding">{{ action.bindings.length > 0 ? action.bindings.join(', ') : '-' }}</span>
+            <span class="action-item-binding">{{ action.bindings.length > 0 ? action.bindings.map(binding => formatBindingForDisplay(binding, action.name)).join(', ') : '-' }}</span>
             <span class="action-item-status"></span>
           </div>
         </div>
