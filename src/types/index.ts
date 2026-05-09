@@ -23,14 +23,11 @@ export type HardwareType =
   | 'hat'
   | 'switch';
 
-export type ActionType = 'digital' | 'analog' | 'analogRelative' | 'motion';
-
 export type ImportanceLevel = 'critical' | 'important' | 'optional';
 
 export interface Action {
   name: string;
   filterPreset: FilterPreset;
-  actionType?: ActionType;
   hint: string;
   hardware: HardwareType;
   importance: ImportanceLevel;
